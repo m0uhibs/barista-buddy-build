@@ -1,11 +1,13 @@
-
 import React, { useState } from 'react';
-import { Coffee, Plus, Minus, ShoppingCart, CreditCard, Receipt, X } from 'lucide-react';
+import { Coffee, Plus, Minus, ShoppingCart, CreditCard, Receipt, X, BarChart3, Users, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import LoginPage from './LoginPage';
+import Analytics from './Analytics';
+import TableSelection from './TableSelection';
 
 interface MenuItem {
   id: string;
@@ -25,14 +27,25 @@ interface Order {
   total: number;
   timestamp: Date;
   status: 'completed' | 'pending';
+  tableNumber?: number;
+}
+
+interface User {
+  type: 'admin' | 'user';
+  username: string;
 }
 
 const POS = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [currentView, setCurrentView] = useState<'pos' | 'analytics' | 'tables'>('pos');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('coffee');
   const [showPayment, setShowPayment] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showReceipt, setShowReceipt] = useState<Order | null>(null);
+  const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [showTableSelection, setShowTableSelection] = useState(false);
+  const [occupiedTables, setOccupiedTables] = useState<number[]>([1, 3, 7]); // Sample occupied tables
 
   const menuItems: MenuItem[] = [
     // Coffee
@@ -68,6 +81,16 @@ const POS = () => {
     { id: 'snacks', name: 'Snacks', icon: Coffee },
   ];
 
+  const handleLogin = (userType: 'admin' | 'user', username: string) => {
+    setUser({ type: userType, username });
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setCurrentView('pos');
+    clearCart();
+  };
+
   const addToCart = (item: MenuItem) => {
     setCart(prev => {
       const existingItem = prev.find(cartItem => cartItem.id === item.id);
@@ -99,6 +122,7 @@ const POS = () => {
 
   const clearCart = () => {
     setCart([]);
+    setSelectedTable(null);
   };
 
   const getTotalPrice = () => {
@@ -111,10 +135,17 @@ const POS = () => {
       items: [...cart],
       total: getTotalPrice(),
       timestamp: new Date(),
-      status: 'completed'
+      status: 'completed',
+      tableNumber: selectedTable || undefined
     };
     
     setOrders(prev => [newOrder, ...prev]);
+    
+    // Update occupied tables
+    if (selectedTable) {
+      setOccupiedTables(prev => [...prev, selectedTable]);
+    }
+    
     setShowReceipt(newOrder);
     clearCart();
     setShowPayment(false);
@@ -122,6 +153,10 @@ const POS = () => {
   };
 
   const filteredItems = menuItems.filter(item => item.category === activeCategory);
+
+  if (!user) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4">
@@ -138,141 +173,229 @@ const POS = () => {
                 <p className="text-gray-600">Coffee Shop POS System</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600">Today's Orders</p>
-              <p className="text-2xl font-bold text-amber-600">{orders.length}</p>
+            
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Welcome, {user.username}</p>
+                <Badge variant={user.type === 'admin' ? 'default' : 'secondary'}>
+                  {user.type}
+                </Badge>
+              </div>
+              
+              <div className="flex space-x-2">
+                <Button
+                  variant={currentView === 'pos' ? 'default' : 'outline'}
+                  onClick={() => setCurrentView('pos')}
+                  size="sm"
+                >
+                  POS
+                </Button>
+                <Button
+                  variant={currentView === 'tables' ? 'default' : 'outline'}
+                  onClick={() => setCurrentView('tables')}
+                  size="sm"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Tables
+                </Button>
+                {user.type === 'admin' && (
+                  <Button
+                    variant={currentView === 'analytics' ? 'default' : 'outline'}
+                    onClick={() => setCurrentView('analytics')}
+                    size="sm"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Analytics
+                  </Button>
+                )}
+                <Button variant="outline" onClick={handleLogout} size="sm">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Menu Section */}
-          <div className="lg:col-span-3">
-            {/* Categories */}
-            <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
-              <div className="flex space-x-2 overflow-x-auto">
-                {categories.map(category => (
-                  <Button
-                    key={category.id}
-                    variant={activeCategory === category.id ? "default" : "outline"}
-                    onClick={() => setActiveCategory(category.id)}
-                    className={`flex items-center space-x-2 whitespace-nowrap ${
-                      activeCategory === category.id 
-                        ? 'bg-amber-500 hover:bg-amber-600' 
-                        : 'hover:bg-amber-50'
-                    }`}
-                  >
-                    <category.icon className="h-4 w-4" />
-                    <span>{category.name}</span>
-                  </Button>
-                ))}
+        {/* Content based on current view */}
+        {currentView === 'analytics' && user.type === 'admin' ? (
+          <Analytics orders={orders} />
+        ) : currentView === 'tables' ? (
+          <TableSelection 
+            selectedTable={selectedTable}
+            onTableSelect={setSelectedTable}
+            occupiedTables={occupiedTables}
+          />
+        ) : (
+          <>
+            {/* POS Interface */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Menu Section */}
+              <div className="lg:col-span-3">
+                {/* Categories */}
+                <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
+                  <div className="flex space-x-2 overflow-x-auto">
+                    {categories.map(category => (
+                      <Button
+                        key={category.id}
+                        variant={activeCategory === category.id ? "default" : "outline"}
+                        onClick={() => setActiveCategory(category.id)}
+                        className={`flex items-center space-x-2 whitespace-nowrap ${
+                          activeCategory === category.id 
+                            ? 'bg-amber-500 hover:bg-amber-600' 
+                            : 'hover:bg-amber-50'
+                        }`}
+                      >
+                        <category.icon className="h-4 w-4" />
+                        <span>{category.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredItems.map(item => (
+                    <Card key={item.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardContent className="p-4">
+                        <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-200 rounded-lg mb-3 flex items-center justify-center">
+                          <Coffee className="h-12 w-12 text-amber-600" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900 text-lg">{item.name}</h3>
+                        <p className="text-2xl font-bold text-amber-600 mb-3">${item.price.toFixed(2)}</p>
+                        <Button 
+                          onClick={() => addToCart(item)}
+                          className="w-full bg-amber-500 hover:bg-amber-600"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add to Cart
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Menu Items */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredItems.map(item => (
-                <Card key={item.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-200 rounded-lg mb-3 flex items-center justify-center">
-                      <Coffee className="h-12 w-12 text-amber-600" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900 text-lg">{item.name}</h3>
-                    <p className="text-2xl font-bold text-amber-600 mb-3">${item.price.toFixed(2)}</p>
-                    <Button 
-                      onClick={() => addToCart(item)}
-                      className="w-full bg-amber-500 hover:bg-amber-600"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add to Cart
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {/* Cart Section */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center">
-                    <ShoppingCart className="h-5 w-5 mr-2" />
-                    Cart
-                  </span>
-                  <Badge variant="secondary">{cart.length} items</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {cart.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">Cart is empty</p>
-                ) : (
-                  <>
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {cart.map(item => (
-                        <div key={item.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm">{item.name}</h4>
-                            <p className="text-amber-600 font-semibold">${item.price.toFixed(2)}</p>
+              {/* Cart Section */}
+              <div className="lg:col-span-1">
+                <Card className="sticky top-4">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="flex items-center">
+                        <ShoppingCart className="h-5 w-5 mr-2" />
+                        Cart
+                      </span>
+                      <Badge variant="secondary">{cart.length} items</Badge>
+                    </CardTitle>
+                    {selectedTable && (
+                      <div className="flex items-center justify-between bg-amber-50 p-2 rounded">
+                        <span className="text-sm font-medium">Table {selectedTable}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setShowTableSelection(true)}
+                        >
+                          Change
+                        </Button>
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {cart.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">Cart is empty</p>
+                    ) : (
+                      <>
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                          {cart.map(item => (
+                            <div key={item.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-sm">{item.name}</h4>
+                                <p className="text-amber-600 font-semibold">${item.price.toFixed(2)}</p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => removeFromCart(item.id)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => addToCart(item)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="border-t pt-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="text-lg font-semibold">Total:</span>
+                            <span className="text-2xl font-bold text-amber-600">
+                              ${getTotalPrice().toFixed(2)}
+                            </span>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => removeFromCart(item.id)}
-                              className="h-8 w-8 p-0"
+                          
+                          <div className="space-y-2">
+                            {!selectedTable && (
+                              <Button 
+                                onClick={() => setShowTableSelection(true)}
+                                variant="outline"
+                                className="w-full"
+                              >
+                                <Users className="h-4 w-4 mr-2" />
+                                Select Table
+                              </Button>
+                            )}
+                            <Button 
+                              onClick={() => setShowPayment(true)}
+                              className="w-full bg-green-500 hover:bg-green-600"
+                              disabled={cart.length === 0}
                             >
-                              <Minus className="h-3 w-3" />
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Process Payment
                             </Button>
-                            <span className="w-8 text-center font-medium">{item.quantity}</span>
-                            <Button
-                              size="sm"
+                            <Button 
+                              onClick={clearCart}
                               variant="outline"
-                              onClick={() => addToCart(item)}
-                              className="h-8 w-8 p-0"
+                              className="w-full"
+                              disabled={cart.length === 0}
                             >
-                              <Plus className="h-3 w-3" />
+                              Clear Cart
                             </Button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                    
-                    <div className="border-t pt-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-lg font-semibold">Total:</span>
-                        <span className="text-2xl font-bold text-amber-600">
-                          ${getTotalPrice().toFixed(2)}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Button 
-                          onClick={() => setShowPayment(true)}
-                          className="w-full bg-green-500 hover:bg-green-600"
-                          disabled={cart.length === 0}
-                        >
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Process Payment
-                        </Button>
-                        <Button 
-                          onClick={clearCart}
-                          variant="outline"
-                          className="w-full"
-                          disabled={cart.length === 0}
-                        >
-                          Clear Cart
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Table Selection Dialog */}
+      <Dialog open={showTableSelection} onOpenChange={setShowTableSelection}>
+        <DialogContent className="max-w-4xl">
+          <TableSelection 
+            selectedTable={selectedTable}
+            onTableSelect={(tableNumber) => {
+              setSelectedTable(tableNumber);
+              setShowTableSelection(false);
+            }}
+            occupiedTables={occupiedTables}
+            onClose={() => setShowTableSelection(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Payment Dialog */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
@@ -281,6 +404,11 @@ const POS = () => {
             <DialogTitle>Process Payment</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {selectedTable && (
+              <div className="bg-blue-50 p-3 rounded">
+                <p className="text-sm font-medium text-blue-800">Table: {selectedTable}</p>
+              </div>
+            )}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-semibold mb-2">Order Summary</h3>
               {cart.map(item => (
@@ -333,6 +461,11 @@ const POS = () => {
                 <p className="text-xs text-gray-600">
                   {showReceipt.timestamp.toLocaleString()}
                 </p>
+                {showReceipt.tableNumber && (
+                  <p className="text-xs text-gray-600">
+                    Table: {showReceipt.tableNumber}
+                  </p>
+                )}
               </div>
               
               <div className="border-t border-b py-2">
