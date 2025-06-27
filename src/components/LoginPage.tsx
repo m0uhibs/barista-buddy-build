@@ -36,32 +36,40 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="bg-amber-500 p-3 rounded-xl w-16 h-16 mx-auto mb-4">
-            <Coffee className="h-10 w-10 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+        <CardHeader className="text-center pb-8">
+          <div className="bg-slate-800 p-4 rounded-2xl w-20 h-20 mx-auto mb-6 shadow-lg">
+            <Coffee className="h-12 w-12 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">Brew & Bean</CardTitle>
-          <p className="text-gray-600">Coffee Shop POS Login</p>
+          <CardTitle className="text-3xl font-light text-slate-800 mb-2">Brew & Bean</CardTitle>
+          <p className="text-slate-500">Modern Coffee Experience</p>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="flex space-x-2 mb-6">
+        <CardContent className="px-8 pb-8">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="flex space-x-1 mb-8 bg-slate-50 p-1 rounded-xl">
               <Button
                 type="button"
-                variant={userType === 'user' ? 'default' : 'outline'}
+                variant={userType === 'user' ? 'default' : 'ghost'}
                 onClick={() => setUserType('user')}
-                className="flex-1"
+                className={`flex-1 ${
+                  userType === 'user' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                }`}
               >
                 <User className="h-4 w-4 mr-2" />
                 User
               </Button>
               <Button
                 type="button"
-                variant={userType === 'admin' ? 'default' : 'outline'}
+                variant={userType === 'admin' ? 'default' : 'ghost'}
                 onClick={() => setUserType('admin')}
-                className="flex-1"
+                className={`flex-1 ${
+                  userType === 'admin' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                }`}
               >
                 <Shield className="h-4 w-4 mr-2" />
                 Admin
@@ -69,7 +77,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-slate-600 font-medium">Username</Label>
               <Input
                 id="username"
                 type="text"
@@ -77,11 +85,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username"
                 required
+                className="border-slate-200 focus:border-slate-400 h-12"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-slate-600 font-medium">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -90,12 +99,13 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
                   required
+                  className="border-slate-200 focus:border-slate-400 h-12 pr-12"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3"
+                  className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-slate-600"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -103,12 +113,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600">
+            <Button type="submit" className="w-full bg-slate-800 hover:bg-slate-700 text-white h-12 text-base font-medium shadow-sm">
               Login
             </Button>
 
-            <div className="text-xs text-gray-500 mt-4">
-              <p><strong>Demo Credentials:</strong></p>
+            <div className="text-xs text-slate-500 mt-6 p-4 bg-slate-50 rounded-xl">
+              <p className="font-medium mb-2">Demo Credentials:</p>
               <p>User: user / user123</p>
               <p>Admin: admin / admin123</p>
             </div>

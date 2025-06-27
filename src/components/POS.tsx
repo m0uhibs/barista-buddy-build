@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Coffee, Plus, Minus, ShoppingCart, CreditCard, Receipt, X, BarChart3, Users, LogOut } from 'lucide-react';
+import { Coffee, Plus, Minus, ShoppingCart, CreditCard, Receipt, X, BarChart3, Package, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,14 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from '@/hooks/use-toast';
 import LoginPage from './LoginPage';
 import Analytics from './Analytics';
-import TableSelection from './TableSelection';
+import Inventory from './Inventory';
 
 interface MenuItem {
   id: string;
   name: string;
   price: number;
+  costPrice: number;
   category: string;
-  image?: string;
+  stock: number;
 }
 
 interface CartItem extends MenuItem {
@@ -27,7 +29,6 @@ interface Order {
   total: number;
   timestamp: Date;
   status: 'completed' | 'pending';
-  tableNumber?: number;
 }
 
 interface User {
@@ -37,42 +38,39 @@ interface User {
 
 const POS = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<'pos' | 'analytics' | 'tables'>('pos');
+  const [currentView, setCurrentView] = useState<'pos' | 'analytics' | 'inventory'>('pos');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('coffee');
   const [showPayment, setShowPayment] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showReceipt, setShowReceipt] = useState<Order | null>(null);
-  const [selectedTable, setSelectedTable] = useState<number | null>(null);
-  const [showTableSelection, setShowTableSelection] = useState(false);
-  const [occupiedTables, setOccupiedTables] = useState<number[]>([1, 3, 7]); // Sample occupied tables
 
-  const menuItems: MenuItem[] = [
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([
     // Coffee
-    { id: '1', name: 'Espresso', price: 2.50, category: 'coffee' },
-    { id: '2', name: 'Americano', price: 3.00, category: 'coffee' },
-    { id: '3', name: 'Cappuccino', price: 4.00, category: 'coffee' },
-    { id: '4', name: 'Latte', price: 4.50, category: 'coffee' },
-    { id: '5', name: 'Macchiato', price: 4.25, category: 'coffee' },
-    { id: '6', name: 'Mocha', price: 5.00, category: 'coffee' },
+    { id: '1', name: 'Espresso', price: 2.50, costPrice: 0.80, category: 'coffee', stock: 50 },
+    { id: '2', name: 'Americano', price: 3.00, costPrice: 0.90, category: 'coffee', stock: 45 },
+    { id: '3', name: 'Cappuccino', price: 4.00, costPrice: 1.20, category: 'coffee', stock: 30 },
+    { id: '4', name: 'Latte', price: 4.50, costPrice: 1.40, category: 'coffee', stock: 35 },
+    { id: '5', name: 'Macchiato', price: 4.25, costPrice: 1.30, category: 'coffee', stock: 25 },
+    { id: '6', name: 'Mocha', price: 5.00, costPrice: 1.60, category: 'coffee', stock: 20 },
     
     // Cold Drinks
-    { id: '7', name: 'Iced Coffee', price: 3.50, category: 'cold' },
-    { id: '8', name: 'Frappuccino', price: 5.50, category: 'cold' },
-    { id: '9', name: 'Cold Brew', price: 4.00, category: 'cold' },
-    { id: '10', name: 'Iced Tea', price: 2.75, category: 'cold' },
+    { id: '7', name: 'Iced Coffee', price: 3.50, costPrice: 1.10, category: 'cold', stock: 40 },
+    { id: '8', name: 'Frappuccino', price: 5.50, costPrice: 1.80, category: 'cold', stock: 30 },
+    { id: '9', name: 'Cold Brew', price: 4.00, costPrice: 1.25, category: 'cold', stock: 35 },
+    { id: '10', name: 'Iced Tea', price: 2.75, costPrice: 0.70, category: 'cold', stock: 50 },
     
     // Pastries
-    { id: '11', name: 'Croissant', price: 3.25, category: 'pastries' },
-    { id: '12', name: 'Muffin', price: 2.75, category: 'pastries' },
-    { id: '13', name: 'Danish', price: 3.50, category: 'pastries' },
-    { id: '14', name: 'Bagel', price: 2.50, category: 'pastries' },
+    { id: '11', name: 'Croissant', price: 3.25, costPrice: 1.00, category: 'pastries', stock: 15 },
+    { id: '12', name: 'Muffin', price: 2.75, costPrice: 0.85, category: 'pastries', stock: 20 },
+    { id: '13', name: 'Danish', price: 3.50, costPrice: 1.10, category: 'pastries', stock: 12 },
+    { id: '14', name: 'Bagel', price: 2.50, costPrice: 0.75, category: 'pastries', stock: 25 },
     
     // Snacks
-    { id: '15', name: 'Sandwich', price: 6.50, category: 'snacks' },
-    { id: '16', name: 'Salad', price: 7.25, category: 'snacks' },
-    { id: '17', name: 'Cookies', price: 2.25, category: 'snacks' },
-  ];
+    { id: '15', name: 'Sandwich', price: 6.50, costPrice: 2.50, category: 'snacks', stock: 18 },
+    { id: '16', name: 'Salad', price: 7.25, costPrice: 2.80, category: 'snacks', stock: 15 },
+    { id: '17', name: 'Cookies', price: 2.25, costPrice: 0.60, category: 'snacks', stock: 40 },
+  ]);
 
   const categories = [
     { id: 'coffee', name: 'Coffee', icon: Coffee },
@@ -92,9 +90,18 @@ const POS = () => {
   };
 
   const addToCart = (item: MenuItem) => {
+    if (item.stock <= 0) {
+      toast({ title: 'Item out of stock', variant: 'destructive' });
+      return;
+    }
+
     setCart(prev => {
       const existingItem = prev.find(cartItem => cartItem.id === item.id);
       if (existingItem) {
+        if (existingItem.quantity >= item.stock) {
+          toast({ title: 'Not enough stock available', variant: 'destructive' });
+          return prev;
+        }
         return prev.map(cartItem =>
           cartItem.id === item.id
             ? { ...cartItem, quantity: cartItem.quantity + 1 }
@@ -122,7 +129,6 @@ const POS = () => {
 
   const clearCart = () => {
     setCart([]);
-    setSelectedTable(null);
   };
 
   const getTotalPrice = () => {
@@ -130,22 +136,25 @@ const POS = () => {
   };
 
   const processPayment = () => {
+    // Update stock
+    const updatedItems = menuItems.map(item => {
+      const cartItem = cart.find(c => c.id === item.id);
+      if (cartItem) {
+        return { ...item, stock: item.stock - cartItem.quantity };
+      }
+      return item;
+    });
+    setMenuItems(updatedItems);
+
     const newOrder: Order = {
       id: `ORD-${Date.now()}`,
       items: [...cart],
       total: getTotalPrice(),
       timestamp: new Date(),
-      status: 'completed',
-      tableNumber: selectedTable || undefined
+      status: 'completed'
     };
     
     setOrders(prev => [newOrder, ...prev]);
-    
-    // Update occupied tables
-    if (selectedTable) {
-      setOccupiedTables(prev => [...prev, selectedTable]);
-    }
-    
     setShowReceipt(newOrder);
     clearCart();
     setShowPayment(false);
@@ -159,73 +168,77 @@ const POS = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/50 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-amber-500 p-3 rounded-xl">
+            <div className="flex items-center space-x-4">
+              <div className="bg-slate-800 p-3 rounded-2xl shadow-sm">
                 <Coffee className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Brew & Bean</h1>
-                <p className="text-gray-600">Coffee Shop POS System</p>
+                <h1 className="text-2xl font-light text-slate-800">Brew & Bean</h1>
+                <p className="text-slate-500 text-sm">Modern Coffee Experience</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
               <div className="text-right">
-                <p className="text-sm text-gray-600">Welcome, {user.username}</p>
-                <Badge variant={user.type === 'admin' ? 'default' : 'secondary'}>
+                <p className="text-sm text-slate-600">Welcome, {user.username}</p>
+                <Badge variant={user.type === 'admin' ? 'default' : 'secondary'} className="text-xs">
                   {user.type}
                 </Badge>
               </div>
               
-              <div className="flex space-x-2">
+              <div className="flex space-x-1 bg-slate-100 p-1 rounded-xl">
                 <Button
-                  variant={currentView === 'pos' ? 'default' : 'outline'}
+                  variant={currentView === 'pos' ? 'default' : 'ghost'}
                   onClick={() => setCurrentView('pos')}
                   size="sm"
+                  className={currentView === 'pos' ? 'bg-white shadow-sm' : 'text-slate-600'}
                 >
                   POS
                 </Button>
-                <Button
-                  variant={currentView === 'tables' ? 'default' : 'outline'}
-                  onClick={() => setCurrentView('tables')}
-                  size="sm"
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Tables
-                </Button>
                 {user.type === 'admin' && (
-                  <Button
-                    variant={currentView === 'analytics' ? 'default' : 'outline'}
-                    onClick={() => setCurrentView('analytics')}
-                    size="sm"
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Analytics
-                  </Button>
+                  <>
+                    <Button
+                      variant={currentView === 'inventory' ? 'default' : 'ghost'}
+                      onClick={() => setCurrentView('inventory')}
+                      size="sm"
+                      className={currentView === 'inventory' ? 'bg-white shadow-sm' : 'text-slate-600'}
+                    >
+                      <Package className="h-4 w-4 mr-2" />
+                      Inventory
+                    </Button>
+                    <Button
+                      variant={currentView === 'analytics' ? 'default' : 'ghost'}
+                      onClick={() => setCurrentView('analytics')}
+                      size="sm"
+                      className={currentView === 'analytics' ? 'bg-white shadow-sm' : 'text-slate-600'}
+                    >
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Analytics
+                    </Button>
+                  </>
                 )}
-                <Button variant="outline" onClick={handleLogout} size="sm">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
               </div>
+              
+              <Button variant="outline" onClick={handleLogout} size="sm" className="border-slate-200">
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto p-6">
         {/* Content based on current view */}
         {currentView === 'analytics' && user.type === 'admin' ? (
           <Analytics orders={orders} />
-        ) : currentView === 'tables' ? (
-          <TableSelection 
-            selectedTable={selectedTable}
-            onTableSelect={setSelectedTable}
-            occupiedTables={occupiedTables}
-          />
+        ) : currentView === 'inventory' && user.type === 'admin' ? (
+          <Inventory menuItems={menuItems} onUpdateItems={setMenuItems} />
         ) : (
           <>
             {/* POS Interface */}
@@ -233,17 +246,17 @@ const POS = () => {
               {/* Menu Section */}
               <div className="lg:col-span-3">
                 {/* Categories */}
-                <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
-                  <div className="flex space-x-2 overflow-x-auto">
+                <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/50 p-6 mb-6">
+                  <div className="flex space-x-1 bg-slate-50 p-1 rounded-xl">
                     {categories.map(category => (
                       <Button
                         key={category.id}
-                        variant={activeCategory === category.id ? "default" : "outline"}
+                        variant={activeCategory === category.id ? "default" : "ghost"}
                         onClick={() => setActiveCategory(category.id)}
-                        className={`flex items-center space-x-2 whitespace-nowrap ${
+                        className={`flex items-center space-x-2 flex-1 ${
                           activeCategory === category.id 
-                            ? 'bg-amber-500 hover:bg-amber-600' 
-                            : 'hover:bg-amber-50'
+                            ? 'bg-white text-slate-800 shadow-sm' 
+                            : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
                         }`}
                       >
                         <category.icon className="h-4 w-4" />
@@ -254,21 +267,31 @@ const POS = () => {
                 </div>
 
                 {/* Menu Items */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredItems.map(item => (
-                    <Card key={item.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                      <CardContent className="p-4">
-                        <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-200 rounded-lg mb-3 flex items-center justify-center">
-                          <Coffee className="h-12 w-12 text-amber-600" />
+                    <Card key={item.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-lg hover:bg-white/80 transition-all duration-200 cursor-pointer">
+                      <CardContent className="p-6">
+                        <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl mb-4 flex items-center justify-center">
+                          <Coffee className="h-12 w-12 text-slate-400" />
                         </div>
-                        <h3 className="font-semibold text-gray-900 text-lg">{item.name}</h3>
-                        <p className="text-2xl font-bold text-amber-600 mb-3">${item.price.toFixed(2)}</p>
+                        <h3 className="font-medium text-slate-800 text-lg mb-1">{item.name}</h3>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-2xl font-light text-slate-800">${item.price.toFixed(2)}</p>
+                          <span className={`text-sm px-2 py-1 rounded-full ${
+                            item.stock > 10 ? 'bg-emerald-100 text-emerald-700' :
+                            item.stock > 0 ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {item.stock} left
+                          </span>
+                        </div>
                         <Button 
                           onClick={() => addToCart(item)}
-                          className="w-full bg-amber-500 hover:bg-amber-600"
+                          disabled={item.stock <= 0}
+                          className="w-full bg-slate-800 hover:bg-slate-700 text-white border-0 shadow-sm disabled:opacity-50"
                         >
                           <Plus className="h-4 w-4 mr-2" />
-                          Add to Cart
+                          {item.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
                         </Button>
                       </CardContent>
                     </Card>
@@ -278,55 +301,44 @@ const POS = () => {
 
               {/* Cart Section */}
               <div className="lg:col-span-1">
-                <Card className="sticky top-4">
+                <Card className="sticky top-24 border-0 shadow-sm bg-white/60 backdrop-blur-sm">
                   <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
+                    <CardTitle className="flex items-center justify-between text-slate-800 font-medium">
                       <span className="flex items-center">
                         <ShoppingCart className="h-5 w-5 mr-2" />
                         Cart
                       </span>
-                      <Badge variant="secondary">{cart.length} items</Badge>
+                      <Badge variant="secondary" className="bg-slate-100 text-slate-700">{cart.length} items</Badge>
                     </CardTitle>
-                    {selectedTable && (
-                      <div className="flex items-center justify-between bg-amber-50 p-2 rounded">
-                        <span className="text-sm font-medium">Table {selectedTable}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setShowTableSelection(true)}
-                        >
-                          Change
-                        </Button>
-                      </div>
-                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {cart.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">Cart is empty</p>
+                      <p className="text-slate-500 text-center py-8">Cart is empty</p>
                     ) : (
                       <>
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                           {cart.map(item => (
-                            <div key={item.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                            <div key={item.id} className="flex items-center justify-between bg-slate-50/80 p-4 rounded-xl">
                               <div className="flex-1">
-                                <h4 className="font-medium text-sm">{item.name}</h4>
-                                <p className="text-amber-600 font-semibold">${item.price.toFixed(2)}</p>
+                                <h4 className="font-medium text-sm text-slate-800">{item.name}</h4>
+                                <p className="text-slate-700 font-medium">${item.price.toFixed(2)}</p>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-3">
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => removeFromCart(item.id)}
-                                  className="h-8 w-8 p-0"
+                                  className="h-8 w-8 p-0 border-slate-200"
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                <span className="w-8 text-center font-medium text-slate-800">{item.quantity}</span>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => addToCart(item)}
-                                  className="h-8 w-8 p-0"
+                                  className="h-8 w-8 p-0 border-slate-200"
+                                  disabled={item.quantity >= item.stock}
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
@@ -335,28 +347,18 @@ const POS = () => {
                           ))}
                         </div>
                         
-                        <div className="border-t pt-4">
+                        <div className="border-t border-slate-200 pt-4">
                           <div className="flex justify-between items-center mb-4">
-                            <span className="text-lg font-semibold">Total:</span>
-                            <span className="text-2xl font-bold text-amber-600">
+                            <span className="text-lg font-medium text-slate-800">Total:</span>
+                            <span className="text-2xl font-light text-slate-800">
                               ${getTotalPrice().toFixed(2)}
                             </span>
                           </div>
                           
                           <div className="space-y-2">
-                            {!selectedTable && (
-                              <Button 
-                                onClick={() => setShowTableSelection(true)}
-                                variant="outline"
-                                className="w-full"
-                              >
-                                <Users className="h-4 w-4 mr-2" />
-                                Select Table
-                              </Button>
-                            )}
                             <Button 
                               onClick={() => setShowPayment(true)}
-                              className="w-full bg-green-500 hover:bg-green-600"
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-sm"
                               disabled={cart.length === 0}
                             >
                               <CreditCard className="h-4 w-4 mr-2" />
@@ -365,7 +367,7 @@ const POS = () => {
                             <Button 
                               onClick={clearCart}
                               variant="outline"
-                              className="w-full"
+                              className="w-full border-slate-200 text-slate-600"
                               disabled={cart.length === 0}
                             >
                               Clear Cart
@@ -382,52 +384,32 @@ const POS = () => {
         )}
       </div>
 
-      {/* Table Selection Dialog */}
-      <Dialog open={showTableSelection} onOpenChange={setShowTableSelection}>
-        <DialogContent className="max-w-4xl">
-          <TableSelection 
-            selectedTable={selectedTable}
-            onTableSelect={(tableNumber) => {
-              setSelectedTable(tableNumber);
-              setShowTableSelection(false);
-            }}
-            occupiedTables={occupiedTables}
-            onClose={() => setShowTableSelection(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
       {/* Payment Dialog */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-0 shadow-xl">
           <DialogHeader>
-            <DialogTitle>Process Payment</DialogTitle>
+            <DialogTitle className="text-slate-800 font-medium">Process Payment</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {selectedTable && (
-              <div className="bg-blue-50 p-3 rounded">
-                <p className="text-sm font-medium text-blue-800">Table: {selectedTable}</p>
-              </div>
-            )}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">Order Summary</h3>
+            <div className="bg-slate-50 p-4 rounded-xl">
+              <h3 className="font-medium mb-2 text-slate-800">Order Summary</h3>
               {cart.map(item => (
-                <div key={item.id} className="flex justify-between text-sm">
+                <div key={item.id} className="flex justify-between text-sm text-slate-600">
                   <span>{item.name} x{item.quantity}</span>
                   <span>${(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
-              <div className="border-t mt-2 pt-2 flex justify-between font-semibold">
+              <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between font-medium text-slate-800">
                 <span>Total:</span>
                 <span>${getTotalPrice().toFixed(2)}</span>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-2">
-              <Button onClick={processPayment} className="bg-green-500 hover:bg-green-600">
+            <div className="grid grid-cols-2 gap-3">
+              <Button onClick={processPayment} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                 Cash Payment
               </Button>
-              <Button onClick={processPayment} className="bg-blue-500 hover:bg-blue-600">
+              <Button onClick={processPayment} className="bg-slate-600 hover:bg-slate-700 text-white">
                 Card Payment
               </Button>
             </div>
@@ -437,9 +419,9 @@ const POS = () => {
 
       {/* Receipt Dialog */}
       <Dialog open={!!showReceipt} onOpenChange={() => setShowReceipt(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-0 shadow-xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
+            <DialogTitle className="flex items-center justify-between text-slate-800 font-medium">
               <span className="flex items-center">
                 <Receipt className="h-5 w-5 mr-2" />
                 Receipt
@@ -448,6 +430,7 @@ const POS = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowReceipt(null)}
+                className="text-slate-500"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -456,34 +439,29 @@ const POS = () => {
           {showReceipt && (
             <div className="space-y-4 font-mono text-sm">
               <div className="text-center">
-                <h2 className="font-bold text-lg">Brew & Bean</h2>
-                <p>Coffee Shop</p>
-                <p className="text-xs text-gray-600">
+                <h2 className="font-bold text-lg text-slate-800">Brew & Bean</h2>
+                <p className="text-slate-600">Modern Coffee Experience</p>
+                <p className="text-xs text-slate-500">
                   {showReceipt.timestamp.toLocaleString()}
                 </p>
-                {showReceipt.tableNumber && (
-                  <p className="text-xs text-gray-600">
-                    Table: {showReceipt.tableNumber}
-                  </p>
-                )}
               </div>
               
-              <div className="border-t border-b py-2">
-                <p className="font-semibold mb-1">Order: {showReceipt.id}</p>
+              <div className="border-t border-b border-slate-200 py-2">
+                <p className="font-semibold mb-1 text-slate-800">Order: {showReceipt.id}</p>
                 {showReceipt.items.map(item => (
-                  <div key={item.id} className="flex justify-between">
+                  <div key={item.id} className="flex justify-between text-slate-600">
                     <span>{item.name} x{item.quantity}</span>
                     <span>${(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
               
-              <div className="flex justify-between font-bold text-lg">
+              <div className="flex justify-between font-bold text-lg text-slate-800">
                 <span>TOTAL:</span>
                 <span>${showReceipt.total.toFixed(2)}</span>
               </div>
               
-              <div className="text-center text-xs text-gray-600">
+              <div className="text-center text-xs text-slate-500">
                 <p>Thank you for your visit!</p>
                 <p>Have a great day!</p>
               </div>
