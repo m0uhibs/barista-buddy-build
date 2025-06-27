@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Coffee, User, Shield, Eye, EyeOff } from 'lucide-react';
+import { Coffee, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,6 @@ interface LoginPageProps {
 const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState<'admin' | 'user'>('user');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -26,10 +25,15 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
       user: { username: 'user', password: 'user123' }
     };
 
-    if (username === validCredentials[userType].username && 
-        password === validCredentials[userType].password) {
-      onLogin(userType, username);
-      toast({ title: `Welcome ${userType}!` });
+    // Check if it's admin first, then user
+    if (username === validCredentials.admin.username && 
+        password === validCredentials.admin.password) {
+      onLogin('admin', username);
+      toast({ title: `Welcome ${username}!` });
+    } else if (username === validCredentials.user.username && 
+               password === validCredentials.user.password) {
+      onLogin('user', username);
+      toast({ title: `Welcome ${username}!` });
     } else {
       toast({ title: 'Invalid credentials', variant: 'destructive' });
     }
@@ -47,35 +51,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
         </CardHeader>
         <CardContent className="px-8 pb-8">
           <form onSubmit={handleLogin} className="space-y-6">
-            <div className="flex space-x-1 mb-8 bg-slate-50 p-1 rounded-xl">
-              <Button
-                type="button"
-                variant={userType === 'user' ? 'default' : 'ghost'}
-                onClick={() => setUserType('user')}
-                className={`flex-1 ${
-                  userType === 'user' 
-                    ? 'bg-white text-slate-800 shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
-                }`}
-              >
-                <User className="h-4 w-4 mr-2" />
-                User
-              </Button>
-              <Button
-                type="button"
-                variant={userType === 'admin' ? 'default' : 'ghost'}
-                onClick={() => setUserType('admin')}
-                className={`flex-1 ${
-                  userType === 'admin' 
-                    ? 'bg-white text-slate-800 shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
-                }`}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Admin
-              </Button>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="username" className="text-slate-600 font-medium">Username</Label>
               <Input

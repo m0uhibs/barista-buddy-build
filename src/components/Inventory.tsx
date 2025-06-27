@@ -17,6 +17,11 @@ interface MenuItem {
   stock: number;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 interface InventoryProps {
   menuItems: MenuItem[];
   onUpdateItems: (items: MenuItem[]) => void;
@@ -26,6 +31,7 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
   const [items, setItems] = useState<MenuItem[]>(menuItems);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [activeCategory, setActiveCategory] = useState('coffee');
   const [newItem, setNewItem] = useState({
     name: '',
@@ -34,13 +40,13 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
     category: 'coffee',
     stock: 0
   });
-
-  const categories = [
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categories, setCategories] = useState<Category[]>([
     { id: 'coffee', name: 'Coffee' },
     { id: 'cold', name: 'Cold Drinks' },
     { id: 'pastries', name: 'Pastries' },
     { id: 'snacks', name: 'Snacks' },
-  ];
+  ]);
 
   const filteredItems = items.filter(item => item.category === activeCategory);
 
@@ -70,9 +76,27 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
     const updatedItems = [...items, item];
     setItems(updatedItems);
     onUpdateItems(updatedItems);
-    setNewItem({ name: '', price: 0, costPrice: 0, category: 'coffee', stock: 0 });
+    setNewItem({ name: '', price: 0, costPrice: 0, category: activeCategory, stock: 0 });
     setShowAddDialog(false);
     toast({ title: `${item.name} added successfully` });
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) {
+      toast({ title: 'Please enter category name', variant: 'destructive' });
+      return;
+    }
+
+    const categoryId = newCategoryName.toLowerCase().replace(/\s+/g, '-');
+    const newCategory: Category = {
+      id: categoryId,
+      name: newCategoryName.trim()
+    };
+
+    setCategories([...categories, newCategory]);
+    setNewCategoryName('');
+    setShowCategoryDialog(false);
+    toast({ title: `Category "${newCategory.name}" added successfully` });
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -101,23 +125,33 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-light text-slate-800">Inventory Management</h2>
-        <Button 
-          onClick={() => setShowAddDialog(true)}
-          className="bg-slate-800 hover:bg-slate-700 text-white border-0 shadow-sm"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </Button>
+        <div className="flex space-x-3">
+          <Button 
+            onClick={() => setShowCategoryDialog(true)}
+            variant="outline"
+            className="border-slate-200 text-slate-600"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
+          <Button 
+            onClick={() => setShowAddDialog(true)}
+            className="bg-slate-800 hover:bg-slate-700 text-white border-0 shadow-sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       {/* Categories */}
-      <div className="flex space-x-1 bg-slate-50 p-1 rounded-xl">
+      <div className="flex space-x-1 bg-slate-50 p-1 rounded-xl overflow-x-auto">
         {categories.map(category => (
           <Button
             key={category.id}
             variant={activeCategory === category.id ? "default" : "ghost"}
             onClick={() => setActiveCategory(category.id)}
-            className={`flex-1 ${
+            className={`whitespace-nowrap ${
               activeCategory === category.id 
                 ? 'bg-white text-slate-800 shadow-sm' 
                 : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
@@ -330,6 +364,35 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
                 Add Item
               </Button>
               <Button variant="outline" onClick={() => setShowAddDialog(false)} className="flex-1 border-slate-200">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Category Dialog */}
+      <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
+        <DialogContent className="sm:max-w-md border-0 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-medium">Add New Category</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-slate-600">Category Name</Label>
+              <Input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Enter category name"
+                className="border-slate-200 focus:border-slate-400"
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button onClick={handleAddCategory} className="flex-1 bg-slate-800 hover:bg-slate-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Category
+              </Button>
+              <Button variant="outline" onClick={() => setShowCategoryDialog(false)} className="flex-1 border-slate-200">
                 Cancel
               </Button>
             </div>

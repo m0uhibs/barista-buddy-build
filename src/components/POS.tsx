@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Coffee, Plus, Minus, ShoppingCart, CreditCard, Receipt, X, BarChart3, Package, LogOut } from 'lucide-react';
+import { Coffee, Plus, Minus, ShoppingCart, CreditCard, Receipt, X, BarChart3, Package, LogOut, History, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import LoginPage from './LoginPage';
 import Analytics from './Analytics';
 import Inventory from './Inventory';
+import SalesHistory from './SalesHistory';
 
 interface MenuItem {
   id: string;
@@ -28,7 +29,7 @@ interface Order {
   items: CartItem[];
   total: number;
   timestamp: Date;
-  status: 'completed' | 'pending';
+  status: 'completed' | 'pending' | 'refunded';
 }
 
 interface User {
@@ -38,7 +39,7 @@ interface User {
 
 const POS = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<'pos' | 'analytics' | 'inventory'>('pos');
+  const [currentView, setCurrentView] = useState<'pos' | 'analytics' | 'inventory' | 'history'>('pos');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('coffee');
   const [showPayment, setShowPayment] = useState(false);
@@ -161,6 +162,47 @@ const POS = () => {
     toast({ title: 'Payment processed successfully!' });
   };
 
+  const handleRefundOrder = (orderId: string) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId 
+        ? { ...order, status: 'refunded' as const }
+        : order
+    ));
+    
+    // Restore stock for refunded items
+    const refundedOrder = orders.find(order => order.id === orderId);
+    if (refundedOrder) {
+      const updatedItems = menuItems.map(item => {
+        const refundedItem = refundedOrder.items.find(orderItem => orderItem.id === item.id);
+        if (refundedItem) {
+          return { ...item, stock: item.stock + refundedItem.quantity };
+        }
+        return item;
+      });
+      setMenuItems(updatedItems);
+    }
+  };
+
+  const handlePrintReceipt = (order: Order) => {
+    const printContent = `
+      BREW & BEAN
+      Modern Coffee Experience
+      
+      Order: ${order.id}
+      Date: ${order.timestamp.toLocaleString()}
+      
+      ${order.items.map(item => `${item.name} x${item.quantity} - $${(item.price * item.quantity).toFixed(2)}`).join('\n')}
+      
+      TOTAL: $${order.total.toFixed(2)}
+      
+      Thank you for your visit!
+    `;
+    
+    // In a real app, this would connect to a thermal printer
+    console.log('Printing receipt:', printContent);
+    toast({ title: 'Receipt sent to printer' });
+  };
+
   const filteredItems = menuItems.filter(item => item.category === activeCategory);
 
   if (!user) {
@@ -199,6 +241,15 @@ const POS = () => {
                   className={currentView === 'pos' ? 'bg-white shadow-sm' : 'text-slate-600'}
                 >
                   POS
+                </Button>
+                <Button
+                  variant={currentView === 'history' ? 'default' : 'ghost'}
+                  onClick={() => setCurrentView('history')}
+                  size="sm"
+                  className={currentView === 'history' ? 'bg-white shadow-sm' : 'text-slate-600'}
+                >
+                  <History className="h-4 w-4 mr-2" />
+                  History
                 </Button>
                 {user.type === 'admin' && (
                   <>
@@ -239,6 +290,8 @@ const POS = () => {
           <Analytics orders={orders} />
         ) : currentView === 'inventory' && user.type === 'admin' ? (
           <Inventory menuItems={menuItems} onUpdateItems={setMenuItems} />
+        ) : currentView === 'history' ? (
+          <SalesHistory orders={orders} onRefundOrder={handleRefundOrder} userType={user.type} />
         ) : (
           <>
             {/* POS Interface */}
@@ -429,10 +482,11 @@ const POS = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowReceipt(null)}
-                className="text-slate-500"
+                onClick={() => showReceipt && handlePrintReceipt(showReceipt)}
+                className="text-slate-600 hover:text-slate-800"
               >
-                <X className="h-4 w-4" />
+                <Printer className="h-4 w-4 mr-1" />
+                Print
               </Button>
             </DialogTitle>
           </DialogHeader>
@@ -465,6 +519,13 @@ const POS = () => {
                 <p>Thank you for your visit!</p>
                 <p>Have a great day!</p>
               </div>
+              
+              <Button 
+                onClick={() => setShowReceipt(null)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white"
+              >
+                Close
+              </Button>
             </div>
           )}
         </DialogContent>
