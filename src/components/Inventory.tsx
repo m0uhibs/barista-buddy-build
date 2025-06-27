@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Minus, Edit2, Trash2, Save, X, Package } from 'lucide-react';
+import { Plus, Minus, Edit2, Trash2, Save, X, Package, Upload, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ interface MenuItem {
   costPrice: number;
   category: string;
   stock: number;
+  image?: string;
 }
 
 interface Category {
@@ -25,9 +26,11 @@ interface Category {
 interface InventoryProps {
   menuItems: MenuItem[];
   onUpdateItems: (items: MenuItem[]) => void;
+  categories: Category[];
+  onUpdateCategories: (categories: Category[]) => void;
 }
 
-const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
+const Inventory = ({ menuItems, onUpdateItems, categories, onUpdateCategories }: InventoryProps) => {
   const [items, setItems] = useState<MenuItem[]>(menuItems);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -38,15 +41,18 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
     price: 0,
     costPrice: 0,
     category: 'coffee',
-    stock: 0
+    stock: 0,
+    image: ''
   });
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [categories, setCategories] = useState<Category[]>([
-    { id: 'coffee', name: 'Coffee' },
-    { id: 'cold', name: 'Cold Drinks' },
-    { id: 'pastries', name: 'Pastries' },
-    { id: 'snacks', name: 'Snacks' },
-  ]);
+
+  // Placeholder images for demonstration
+  const placeholderImages = [
+    'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=300&h=200&fit=crop',
+    'https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=300&h=200&fit=crop',
+    'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=300&h=200&fit=crop',
+    'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=300&h=200&fit=crop'
+  ];
 
   const filteredItems = items.filter(item => item.category === activeCategory);
 
@@ -76,7 +82,7 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
     const updatedItems = [...items, item];
     setItems(updatedItems);
     onUpdateItems(updatedItems);
-    setNewItem({ name: '', price: 0, costPrice: 0, category: activeCategory, stock: 0 });
+    setNewItem({ name: '', price: 0, costPrice: 0, category: activeCategory, stock: 0, image: '' });
     setShowAddDialog(false);
     toast({ title: `${item.name} added successfully` });
   };
@@ -93,7 +99,8 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
       name: newCategoryName.trim()
     };
 
-    setCategories([...categories, newCategory]);
+    const updatedCategories = [...categories, newCategory];
+    onUpdateCategories(updatedCategories);
     setNewCategoryName('');
     setShowCategoryDialog(false);
     toast({ title: `Category "${newCategory.name}" added successfully` });
@@ -121,11 +128,29 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
     return ((price - costPrice) / price * 100);
   };
 
+  const addPlaceholderImages = () => {
+    const updatedItems = items.map((item, index) => ({
+      ...item,
+      image: item.image || placeholderImages[index % placeholderImages.length]
+    }));
+    setItems(updatedItems);
+    onUpdateItems(updatedItems);
+    toast({ title: 'Placeholder images added to items without images' });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-light text-slate-800">Inventory Management</h2>
         <div className="flex space-x-3">
+          <Button 
+            onClick={addPlaceholderImages}
+            variant="outline"
+            className="border-slate-200 text-slate-600"
+          >
+            <Image className="h-4 w-4 mr-2" />
+            Add Sample Images
+          </Button>
           <Button 
             onClick={() => setShowCategoryDialog(true)}
             variant="outline"
@@ -190,6 +215,24 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Item Image */}
+              <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl overflow-hidden">
+                {item.image ? (
+                  <img 
+                    src={item.image} 
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDE5QzE1LjMxIDIxLjk1IDEyIDEyIDEyIDEyQzEyIDEyIDguNjkgMjEuOTUgMTIgMTlaIiBmaWxsPSIjNjM3Mzg1Ii8+Cjwvc3ZnPgo=';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Package className="h-12 w-12 text-slate-400" />
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-slate-500">Selling Price</p>
@@ -255,6 +298,15 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
                   className="border-slate-200 focus:border-slate-400"
                 />
               </div>
+              <div>
+                <Label className="text-slate-600">Image URL</Label>
+                <Input
+                  value={editingItem.image || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, image: e.target.value })}
+                  placeholder="Enter image URL"
+                  className="border-slate-200 focus:border-slate-400"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-slate-600">Selling Price</Label>
@@ -312,6 +364,15 @@ const Inventory = ({ menuItems, onUpdateItems }: InventoryProps) => {
               <Input
                 value={newItem.name}
                 onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                className="border-slate-200 focus:border-slate-400"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-600">Image URL</Label>
+              <Input
+                value={newItem.image}
+                onChange={(e) => setNewItem({ ...newItem, image: e.target.value })}
+                placeholder="Enter image URL (optional)"
                 className="border-slate-200 focus:border-slate-400"
               />
             </div>

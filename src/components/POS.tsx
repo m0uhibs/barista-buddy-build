@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Coffee, Plus, Minus, ShoppingCart, CreditCard, Receipt, X, BarChart3, Package, LogOut, History, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,7 @@ interface MenuItem {
   costPrice: number;
   category: string;
   stock: number;
+  image?: string;
 }
 
 interface CartItem extends MenuItem {
@@ -37,6 +37,11 @@ interface User {
   username: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 const POS = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<'pos' | 'analytics' | 'inventory' | 'history'>('pos');
@@ -46,12 +51,19 @@ const POS = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [showReceipt, setShowReceipt] = useState<Order | null>(null);
 
+  const [categories, setCategories] = useState<Category[]>([
+    { id: 'coffee', name: 'Coffee' },
+    { id: 'cold', name: 'Cold Drinks' },
+    { id: 'pastries', name: 'Pastries' },
+    { id: 'snacks', name: 'Snacks' },
+  ]);
+
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
     // Coffee
-    { id: '1', name: 'Espresso', price: 2.50, costPrice: 0.80, category: 'coffee', stock: 50 },
-    { id: '2', name: 'Americano', price: 3.00, costPrice: 0.90, category: 'coffee', stock: 45 },
-    { id: '3', name: 'Cappuccino', price: 4.00, costPrice: 1.20, category: 'coffee', stock: 30 },
-    { id: '4', name: 'Latte', price: 4.50, costPrice: 1.40, category: 'coffee', stock: 35 },
+    { id: '1', name: 'Espresso', price: 2.50, costPrice: 0.80, category: 'coffee', stock: 50, image: 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=300&h=200&fit=crop' },
+    { id: '2', name: 'Americano', price: 3.00, costPrice: 0.90, category: 'coffee', stock: 45, image: 'https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=300&h=200&fit=crop' },
+    { id: '3', name: 'Cappuccino', price: 4.00, costPrice: 1.20, category: 'coffee', stock: 30, image: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=300&h=200&fit=crop' },
+    { id: '4', name: 'Latte', price: 4.50, costPrice: 1.40, category: 'coffee', stock: 35, image: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=300&h=200&fit=crop' },
     { id: '5', name: 'Macchiato', price: 4.25, costPrice: 1.30, category: 'coffee', stock: 25 },
     { id: '6', name: 'Mocha', price: 5.00, costPrice: 1.60, category: 'coffee', stock: 20 },
     
@@ -72,13 +84,6 @@ const POS = () => {
     { id: '16', name: 'Salad', price: 7.25, costPrice: 2.80, category: 'snacks', stock: 15 },
     { id: '17', name: 'Cookies', price: 2.25, costPrice: 0.60, category: 'snacks', stock: 40 },
   ]);
-
-  const categories = [
-    { id: 'coffee', name: 'Coffee', icon: Coffee },
-    { id: 'cold', name: 'Cold Drinks', icon: Coffee },
-    { id: 'pastries', name: 'Pastries', icon: Coffee },
-    { id: 'snacks', name: 'Snacks', icon: Coffee },
-  ];
 
   const handleLogin = (userType: 'admin' | 'user', username: string) => {
     setUser({ type: userType, username });
@@ -289,7 +294,12 @@ const POS = () => {
         {currentView === 'analytics' && user.type === 'admin' ? (
           <Analytics orders={orders} />
         ) : currentView === 'inventory' && user.type === 'admin' ? (
-          <Inventory menuItems={menuItems} onUpdateItems={setMenuItems} />
+          <Inventory 
+            menuItems={menuItems} 
+            onUpdateItems={setMenuItems}
+            categories={categories}
+            onUpdateCategories={setCategories}
+          />
         ) : currentView === 'history' ? (
           <SalesHistory orders={orders} onRefundOrder={handleRefundOrder} userType={user.type} />
         ) : (
@@ -300,19 +310,19 @@ const POS = () => {
               <div className="lg:col-span-3">
                 {/* Categories */}
                 <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/50 p-6 mb-6">
-                  <div className="flex space-x-1 bg-slate-50 p-1 rounded-xl">
+                  <div className="flex space-x-1 bg-slate-50 p-1 rounded-xl overflow-x-auto">
                     {categories.map(category => (
                       <Button
                         key={category.id}
                         variant={activeCategory === category.id ? "default" : "ghost"}
                         onClick={() => setActiveCategory(category.id)}
-                        className={`flex items-center space-x-2 flex-1 ${
+                        className={`flex items-center space-x-2 flex-1 whitespace-nowrap ${
                           activeCategory === category.id 
                             ? 'bg-white text-slate-800 shadow-sm' 
                             : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
                         }`}
                       >
-                        <category.icon className="h-4 w-4" />
+                        <Coffee className="h-4 w-4" />
                         <span>{category.name}</span>
                       </Button>
                     ))}
@@ -324,8 +334,21 @@ const POS = () => {
                   {filteredItems.map(item => (
                     <Card key={item.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-lg hover:bg-white/80 transition-all duration-200 cursor-pointer">
                       <CardContent className="p-6">
-                        <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl mb-4 flex items-center justify-center">
-                          <Coffee className="h-12 w-12 text-slate-400" />
+                        <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl mb-4 overflow-hidden">
+                          {item.image ? (
+                            <img 
+                              src={item.image} 
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling!.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div className="w-full h-full flex items-center justify-center" style={{ display: item.image ? 'none' : 'flex' }}>
+                            <Coffee className="h-12 w-12 text-slate-400" />
+                          </div>
                         </div>
                         <h3 className="font-medium text-slate-800 text-lg mb-1">{item.name}</h3>
                         <div className="flex items-center justify-between mb-3">
